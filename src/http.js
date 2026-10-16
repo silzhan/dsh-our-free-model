@@ -345,9 +345,14 @@ async function readRemainder(head, signal) {
 /**
  * POST one request and stream back decoded SSE `data:` payloads.
  *
+ * `body.stream` is forced to `true` rather than trusted from the caller: the lane
+ * answers 403 FreeTierError to a non-streaming request even when every other
+ * fingerprint matches (measured 2026-10-16, see docs/free-lane-wire.md), and a
+ * plain object is rebuilt like `postAggregateStreamed` does.
+ *
  * @param {object} options
  * @param {string} options.path - gateway path
- * @param {object} options.body - JSON request body
+ * @param {object|string} options.body - JSON request body, or an already-encoded one
  * @param {string} options.session - canonical upstream session id
  * @param {string} options.requestId - per-turn request id
  * @param {string} [options.attributionUserAgent] - harness User-Agent merged into the request
@@ -388,9 +393,10 @@ function userAgentWith(attribution) {
 export async function postStreamed({ path, body, session, requestId, attributionUserAgent, signal, onData, timeoutMs = 300000 }) {
   const headers = gatewayHeaders({ session: truncateSession(session), requestId, stream: true })
   headers['user-agent'] = userAgentWith(attributionUserAgent)
+  const bodyText = typeof body === 'string' ? body : JSON.stringify({ ...body, stream: true })
   let response
   try {
-    response = await egressFetch(`${UPSTREAM_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body), redirect: 'error', signal })
+    response = await egressFetch(`${UPSTREAM_BASE}${path}`, { method: 'POST', headers, body: bodyText, redirect: 'error', signal })
   } catch (error) {
     // The signal's own reason is what fetch rejects with, and Node's is a
     // `TimeoutError`/user Error rather than `AbortError` — testing the name alone

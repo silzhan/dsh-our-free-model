@@ -127,7 +127,26 @@ console.log('\n=== 5. a User-Agent naming deepseek-harness is refused by the gat
   check('session-id went out', typeof sent.headers['x-opencode-session-id'] === 'string', true)
 }
 
-console.log('\n=== 6. 独立服务的客户端简称同时适用于目录和推理 ===')
+console.log('\n=== 6. a non-streaming body is forced onto the streaming wire ===')
+{
+  // The gateway answers 403 FreeTierError to a non-streaming request even when
+  // every other fingerprint matches, so the flag cannot be left to the caller:
+  // a caller that forgot it would otherwise collect a 403 that looks like the
+  // lane being down. See docs/free-lane-wire.md.
+  await postStreamed({
+    path: up.endpointFor('cat-jam-free'),
+    body: { model: 'cat-jam-free', messages: [{ role: 'user', content: 'ping' }], stream: false },
+    session: up.sessionForConversation('wire:stream'),
+    requestId: up.mintRequestId(),
+    onData: () => {},
+    timeoutMs: 5000,
+  })
+  const sent = JSON.parse(seen.at(-1).body)
+  check('stream is forced on', sent.stream, true)
+  check('the rest of the body survives', sent.model, 'cat-jam-free')
+}
+
+console.log('\n=== 7. 独立服务的客户端简称同时适用于目录和推理 ===')
 {
   const attributionUserAgent = 'our-free-model-standalone/2.3.0'
   await getJson('/inference/v1/models', { attributionUserAgent })
