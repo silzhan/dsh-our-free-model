@@ -9,6 +9,14 @@
  * account actually enforces is `max_tokens`, and reasoning volume tracks it
  * directly (a 64-token ceiling pulled reasoning from ~397 tokens down to ~63).
  *
+ * Re-verified 2026-10-16 after the lane moved to `/inference/v1`: unchanged. With
+ * `max_tokens` pinned at 1024 and one prompt held across every request, two rounds
+ * on `mimo-v2.6-flash-free` put `reasoning_effort: low` at 14 then 115 reasoning
+ * tokens and `high` at 14 then 12 — `low` was the smallest figure in one round and
+ * the largest in the other, so the level's value carries no signal at all. Read
+ * that as the design's warrant, not as noise to be averaged away: a level is only
+ * worth declaring when it moves something measurable.
+ *
  * So an effort level here is a real, enforced generation budget rather than a
  * hint. Every declared level therefore changes measured behaviour; a level that
  * could not be enforced would not be declared, because an effort menu that does
